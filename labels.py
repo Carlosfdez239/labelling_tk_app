@@ -1,3 +1,14 @@
+'''
+C. Fdez
+26/11/2024
+Rev 0
+
+To do
+    []Añadir logo Worldsensing en top
+    []Añadir en banner Menú submenú para configuración impresora
+    []Añadir en banner Menú submenú para configuración ruta archivos
+    
+'''
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import csv  # Para trabajar con archivos CSV
