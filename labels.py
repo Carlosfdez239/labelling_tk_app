@@ -3,13 +3,23 @@ C. Fdez
 26/11/2024
 Rev 0
 
+
+Rev 1 --> 06/12/2024
+    - archivo config.json con las configuraciones de la aplicación
+    - el número de lote se construye con año,mes,dia más el código del proveedor (clave "batch": en config.json)
+
+######################################################################################
 To do
-    []Añadir logo Worldsensing en top
-    []Añadir en banner Menú submenú para configuración impresora
+    []Añadir logo Worldsensing en el top de la app
+    [x]Añadir en banner Menú submenú para configuración impresora
+        [x] Se crea un archivo json con las configuraciones necesarias --> 06_12_2024
     []Añadir en banner Menú submenú para configuración ruta archivos
-    
+    []Añadir input con número de copias al imprimir etiquetas
+
+#######################################################################################
 '''
 import tkinter as tk
+from tkinter import *
 from tkinter import filedialog, messagebox
 import csv  # Para trabajar con archivos CSV
 import subprocess
@@ -17,10 +27,32 @@ from pylibdmtx.pylibdmtx import encode
 #from PIL import Image, ImageDraw, ImageFont
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 import os
+import json
+import datetime
 
-#IMPRESORA = "Brother_QL-820NWB"
-IMPRESORA ="Brother_QL-820NWB"
-DIRECTORIO_LOGO = '/home/casa/Documentos/Worldsensing/Thread/Test/Thread_test/outputs/'
+
+
+# Función para cargar la configuración
+def load_config(file_path="config.json"):
+    try:
+        with open(file_path, "r") as file:
+            config = json.load(file)
+        return config
+    except FileNotFoundError:
+        print(f"No se encontró el archivo de configuración: {file_path}")
+        return {}
+    except json.JSONDecodeError as e:
+        print(f"Error al leer el archivo JSON: {e}")
+        return {}
+
+# Carga la configuración
+config = load_config()
+
+# Usa los valores de configuración
+IMPRESORA = config.get("IMPRESORA", "")
+DIRECTORIO_LOGO = config.get("DIRECTORIO_LOGO", "")
+FONT_PATH = config.get("font_path", "")
+BATCH_N = config.get ("batch", "")
 
 # Función para seleccionar un archivo
 def select_file():
@@ -102,79 +134,18 @@ def search_record():
     except Exception as e:
         messagebox.showerror("Error", f"Ocurrió un error al abrir el archivo:\n{e}")
 
-# Función para crear la etiqueta
-#def Impr_Node_packaging_label(datam,Model,ERP_Code,Serial_N):
-    '''
-    Parámetros de este método
-    datam: contenido del datamatrix, los campos deben ir separados por ;
-    Model: Modelo comercial del producto
-    ERP_Code: Código del ERP
-    Serial_N: Número de serie del producto
-    '''
 
-    font_size = 25  # Reduce o aumenta el tamaño según sea necesario
-    font_path = "/usr/share/fonts/truetype/noto/NotoSansDisplay-Regular.ttf"
-    font = ImageFont.truetype(font_path, font_size)
-    
-    #Agregamos los imagotipos y el logo de Ws
-    logo_ruta = DIRECTORIO_LOGO+"logo.png"
-    #imagotipo_ruta = DIRECTORIO_LOGO+"imagotipos_nodos.png"
+# Función para crear el número de lote
+def Crear_Batch():
+    fecha = datetime.datetime.today().strftime("%Y%m%d")
+    Batch_n = fecha + BATCH_N 
+    #print (Batch_n)
+    return Batch_n
 
-
-    #Agregamos texto
-    Model = Model
-    ERP_Code = ERP_Code
-    Serial_N = Serial_N
-
-    # Convertimos milímetros a píxeles (asumiendo 300 DPI)
-    mm_to_px = 11.81  # factor de conversión de mm a px (300 DPI)
-
-    # Dimensionamos la etiqueta
-    label_width = int(50 * mm_to_px)  # 50 mm de longitud
-    label_height = int(36 * mm_to_px)  # 36 mm de altura
-
-    # Creamos el lienzo de la etiqueta
-    label = Image.new("RGB", (label_width, label_height), "white")
-    
-    # Cargar e insertar la imagen .png en la etiqueta
-    image_path = DIRECTORIO_LOGO+"iconos.png"
-    insert_image = Image.open(image_path)
-    insert_image = insert_image.resize((int(18 * mm_to_px), int(13 * mm_to_px)))  # Redimensionar si es necesario
-    label.paste(insert_image, (label_width - insert_image.width, int(16* mm_to_px)))  # Posición en la esquina superior derecha
-
-    # Cargar e insertar el logo de Worldsensing
-    image_path = logo_ruta
-    insert_image = Image.open(image_path)
-    insert_image = insert_image.resize((int(29 * mm_to_px), int(9 * mm_to_px)))  # Redimensionar si es necesario
-    label.paste(insert_image, (0, 0))  # Posición en la esquina superior izda
-
-    draw = ImageDraw.Draw(label)
-    draw.text((2* mm_to_px, 9* mm_to_px), "Model: " + Model, font=font, fill='black')
-    draw.text((2* mm_to_px, 12* mm_to_px), "ERP_Code: " + ERP_Code, font=font, fill='black')
-    draw.text((2* mm_to_px, 15* mm_to_px), "Serial_Nb: " + Serial_N, font=font, fill='black')
-
-    # Generar el código Data Matrix
-    encoded = encode(datam.encode('utf8'))
-    dmtx = Image.frombytes('RGB', (encoded.width, encoded.height), encoded.pixels)
-    dmtx.save("dmtx_debug.png")
-    label.paste(dmtx,(label_width-encoded.width,int(8*mm_to_px)))
-    #dmtx.show()
-
-    label.save("output_test.png")
-    #label.show()
-
-    #contenido = datam.split(";")
-    #ETIQUETA = 'etiqueta_4_' + contenido[-1] + '.png'
-
-    # Grabamos la etiqueta    
-    #label.save(ETIQUETA)
-
-
-    # Mostramos en pantalla la etiqueta
-    #label.show()
 # Función para mostrar la etiqueta generada
 def display_label():
-    datam = label1_value.get() + ";" + label3_value.get() +";"+"20241022000126"
+    Batch_n=Crear_Batch()
+    datam = label1_value.get() + ";" + label3_value.get() +";"+ Batch_n
     Model = label1_value.get()
     ERP_Code = label2_value.get()
     Serial_N = label3_value.get()
@@ -234,13 +205,28 @@ def print_label():
 # Crear ventana principal
 root = tk.Tk()
 root.title("Aplicación de búsqueda y generación de etiquetas")
+root.tk.call('tk', 'windowingsystem') 
+root.option_add('*tearOff', FALSE)
 
 # Zona superior
-banner_frame = tk.Frame(root, bg="lightblue", height=50)
-banner_frame.pack(side="top", fill="x")
+win = tk.Toplevel(root)
+menubar = tk.Menu(win)
+win['menu'] = menubar
+menubar = tk.Menu(root)
+menu_setup = tk.Menu(menubar)
+menu_edit = tk.Menu(menubar)
+menubar.add_cascade(menu=menu_setup, label='Setup')
+menubar.add_cascade(menu=menu_edit, label='Edit',state='disabled')
 
-menu_label = tk.Label(banner_frame, text="Menú", bg="lightblue", font=("Arial", 12))
-menu_label.pack(side="left", padx=10)
+menu_setup.add_command(label='Printer', command="")
+menu_setup.add_separator()
+
+#menu_setup.add_command(label='Open...', state='disabled')
+#menu_setup.add_radiobutton(label="Opción 1",state='disabled')
+#menu_setup.add_command(label='Close', state='disabled')
+root['menu'] = menubar
+#menu_label = tk.Label(banner_frame, text="Menú", bg="lightblue", font=("Arial", 12))
+#menu_label.pack(side="left", padx=10)
 
 # Zona central
 center_frame = tk.Frame(root, padx=10, pady=10)
