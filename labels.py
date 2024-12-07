@@ -8,17 +8,29 @@ Rev 1 --> 06/12/2024
     - archivo config.json con las configuraciones de la aplicación
     - el número de lote se construye con año,mes,dia más el código del proveedor (clave "batch": en config.json)
 
+Rev 2 --> 07/12/2024
+    - Se añade acción en el Menú impresora --> se abre una ventana emergente con la lista de las 
+      impresoras instaladas en el sistema (solo Linux)
+    - Se añade logo de Worldsensing
+
 ######################################################################################
 To do
     []Añadir logo Worldsensing en el top de la app
     [x]Añadir en banner Menú submenú para configuración impresora
-        [x] Se crea un archivo json con las configuraciones necesarias --> 06_12_2024
-    []Añadir en banner Menú submenú para configuración ruta archivos
+        [x] Se crea un archivo json con las configuraciones necesarias --> 06/12/2024
+    [x]Añadir en banner Menú submenú para configuración ruta archivos
+        [x] Se traspasa a archivo config.json --> 06/12/2024
     []Añadir input con número de copias al imprimir etiquetas
 
 #######################################################################################
+    
+Dependencias
+pip install screeninfo para redimensionar la ventana al ancho máximo
+
+
 '''
 import tkinter as tk
+from tkinter import ttk
 from tkinter import *
 from tkinter import filedialog, messagebox
 import csv  # Para trabajar con archivos CSV
@@ -29,6 +41,7 @@ from PIL import Image, ImageTk, ImageDraw, ImageFont
 import os
 import json
 import datetime
+from screeninfo import get_monitors
 
 
 
@@ -134,7 +147,6 @@ def search_record():
     except Exception as e:
         messagebox.showerror("Error", f"Ocurrió un error al abrir el archivo:\n{e}")
 
-
 # Función para crear el número de lote
 def Crear_Batch():
     fecha = datetime.datetime.today().strftime("%Y%m%d")
@@ -201,12 +213,56 @@ def print_label():
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo imprimir la etiqueta:\n{e}")
 
+def list_printers():
+    """Obtiene la lista de impresoras del sistema."""
+    printers = []
+    try:
+        result = subprocess.run(['lpstat', '-p'], stdout=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            printers = [line.split()[2] for line in result.stdout.splitlines() if line.startswith("la impresora")]
+        else:
+            printers = ["Error al ejecutar 'lpstat'."]
+    except FileNotFoundError:
+        printers = ["Comando 'lpstat' no disponible."]
+    return printers
+
+def open_printer_window():
+    """Abre una ventana con la lista de impresoras."""
+    win = tk.Toplevel(root)
+    win.title("Lista de Impresoras")
+    win.geometry("400x300")
+    
+    # Etiqueta de descripción
+    tk.Label(win, text="Impresoras disponibles:", font=("Arial", 12)).pack(pady=10)
+    
+    # Obtener la lista de impresoras
+    printers = list_printers()
+    
+    # Mostrar la lista en un Treeview
+    tree = ttk.Treeview(win, columns=("Impresoras"), show="headings")
+    tree.heading("Impresoras", text="Nombre de la Impresora")
+    tree.column("Impresoras", anchor="center", width=350)
+    tree.pack(expand=True, fill="both", pady=10, padx=10)
+    
+    for printer in printers:
+        tree.insert("", "end", values=(printer,))
+    
+    # Botón para cerrar
+    tk.Button(win, text="Cerrar", command=win.destroy).pack(pady=10)
 
 # Crear ventana principal
 root = tk.Tk()
 root.title("Aplicación de búsqueda y generación de etiquetas")
 root.tk.call('tk', 'windowingsystem') 
 root.option_add('*tearOff', FALSE)
+
+# Obtener el tamaño de la pantalla
+monitor = get_monitors()[0]  # Obtiene el monitor principal
+screen_width = monitor.width
+screen_height = monitor.height
+
+# Configurar la ventana al tamaño de la pantalla
+root.geometry(f"{screen_width}x{screen_height}")
 
 # Zona superior
 win = tk.Toplevel(root)
@@ -218,7 +274,7 @@ menu_edit = tk.Menu(menubar)
 menubar.add_cascade(menu=menu_setup, label='Setup')
 menubar.add_cascade(menu=menu_edit, label='Edit',state='disabled')
 
-menu_setup.add_command(label='Printer', command="")
+menu_setup.add_command(label='Printer', command=open_printer_window)
 menu_setup.add_separator()
 
 #menu_setup.add_command(label='Open...', state='disabled')
@@ -228,6 +284,32 @@ root['menu'] = menubar
 #menu_label = tk.Label(banner_frame, text="Menú", bg="lightblue", font=("Arial", 12))
 #menu_label.pack(side="left", padx=10)
 
+# Creamos el camvas para el logo de WS
+#canvas_logo = tk.Canvas(root, height=100, bg="white", highlightthickness=0)
+canvas_logo = tk.Canvas(root, height=100, highlightthickness=0)
+canvas_logo.pack(fill="x")
+
+# Cargar la imagen PNG
+try:
+    WS_logo_path = DIRECTORIO_LOGO+"WS_logo.png"
+    WS_logo_img = Image.open(WS_logo_path)
+
+    # Redimensionar la imagen para que encaje en la cinta
+    WS_logo_img = WS_logo_img.resize((230,80), Image.Resampling.LANCZOS)
+    WS_logo_img_tk = ImageTk.PhotoImage(WS_logo_img)
+
+    # Mostrar la imagen en el Canvas
+    canvas_logo.create_image(10, 10, anchor="nw", image=WS_logo_img_tk)
+
+    # Mantener una referencia de la imagen
+    canvas_logo.image = WS_logo_img_tk
+except Exception as e:
+    print(f"Error al cargar la imagen: {e}")
+
+# Añadir texto en el Canvas
+# canvas_logo.create_text(150, 50, text="Labelling App", font=("Arial", 20), anchor="w", fill="black")
+
+      
 # Zona central
 center_frame = tk.Frame(root, padx=10, pady=10)
 center_frame.pack(fill="both", expand=True)
@@ -254,15 +336,15 @@ label2_value = tk.StringVar(value="N/A")
 label3_value = tk.StringVar(value="N/A")
 
 tk.Label(center_frame, text="ERP:",width=25).grid(row=15, column=0, sticky="w", pady=5)
-result1 = tk.Label(center_frame, textvariable=label1_value, bg="white",width=100, anchor="w",relief="sunken")
+result1 = tk.Label(center_frame, textvariable=label1_value,width=100, anchor="w",relief="sunken")
 result1.grid(row=15, column=1, pady=5,padx=1)
 
 tk.Label(center_frame, text="Model:",width=25).grid(row=17, column=0, sticky="w", pady=5)
-result2 = tk.Label(center_frame, textvariable=label2_value, bg="white", width=100, anchor="w", relief="sunken")
+result2 = tk.Label(center_frame, textvariable=label2_value, width=100, anchor="w", relief="sunken")
 result2.grid(row=17, column=1, pady=5,padx=1)
 
 tk.Label(center_frame, text="Serial:",width=25).grid(row=19, column=0, sticky="w", pady=5)
-result3 = tk.Label(center_frame, textvariable=label3_value, bg="white", width=100, anchor="w", relief="sunken")
+result3 = tk.Label(center_frame, textvariable=label3_value, width=100, anchor="w", relief="sunken")
 result3.grid(row=19, column=1, pady=5,padx=1)
 
 # Botones para generar y imprimir la etiqueta

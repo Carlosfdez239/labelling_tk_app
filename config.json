@@ -1,6 +1,6 @@
 {
     "IMPRESORA": "Brother_QL-820NWB",
-    "DIRECTORIO_LOGO": "/home/casa/Documentos/Worldsensing/Thread/Test/Thread_test/outputs/",
+    "DIRECTORIO_LOGO": "/home/casa/Documentos/Worldsensing/Labelling_tk_app/images/",
     "font_path": "/usr/share/fonts/truetype/noto/NotoSansDisplay-Regular.ttf",
     "batch": "225"
 }
