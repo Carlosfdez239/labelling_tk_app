@@ -12,7 +12,15 @@ Rev 2 --> 07/12/2024
     - Se añade acción en el Menú impresora --> se abre una ventana emergente con la lista de las 
       impresoras instaladas en el sistema (solo Linux)
     - Se añade logo de Worldsensing
+    
 
+Rev 2.1 --> 07/12/2024
+    - En la función search_record(), acondicionamos el valor del filtro si la lectura 
+      se hace mediante lector de código de barras
+    
+Rev 2.2 --> 07/12/2024
+    - Se detectan 2 Bugs, se crea area de reporting
+    
 ######################################################################################
 To do
     []Añadir logo Worldsensing en el top de la app
@@ -23,7 +31,14 @@ To do
     []Añadir input con número de copias al imprimir etiquetas
 
 #######################################################################################
-    
+
+=======================================================================================
+ISSUES / BUGS
+    [] Tras imprimir no se borran los contenidos de los campos
+    [] Si vuelves a pulsar sobre generar pierdes la imágen y ya no ves la nueva etiqueta
+
+=======================================================================================
+
 Dependencias
 pip install screeninfo para redimensionar la ventana al ancho máximo
 
@@ -123,7 +138,12 @@ def Impr_Node_packaging_label(datam, Model, ERP_Code, Serial_N):
 def search_record():
     file_path = file_entry.get()
     filter_value = filter_entry.get()
-    
+    # Recogemos el valor del serial (segunda posición) si escaneamos con lector
+    if ";" in filter_value:
+        serial = filter_value.split(";")
+        filter_value = serial[1]
+
+
     if not file_path:
         messagebox.showwarning("Advertencia", "Por favor, seleccione un archivo.")
         return
@@ -213,6 +233,7 @@ def print_label():
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo imprimir la etiqueta:\n{e}")
 
+# Función para listar impresoras del sistema
 def list_printers():
     """Obtiene la lista de impresoras del sistema."""
     printers = []
@@ -226,6 +247,7 @@ def list_printers():
         printers = ["Comando 'lpstat' no disponible."]
     return printers
 
+# Función para crear una ventana emergente y listar las impresoras
 def open_printer_window():
     """Abre una ventana con la lista de impresoras."""
     win = tk.Toplevel(root)
