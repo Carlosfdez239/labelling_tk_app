@@ -20,10 +20,13 @@ Rev 2.1 --> 07/12/2024
     
 Rev 2.2 --> 07/12/2024
     - Se detectan 2 Bugs, se crea area de reporting
-    
+
+Rev 2.3 --> 08/12/2024
+    - Solucionados los 2 Bugs.
+
 ######################################################################################
 To do
-    []Añadir logo Worldsensing en el top de la app
+    [x]Añadir logo Worldsensing en el top de la app --> 08/12/2024
     [x]Añadir en banner Menú submenú para configuración impresora
         [x] Se crea un archivo json con las configuraciones necesarias --> 06/12/2024
     [x]Añadir en banner Menú submenú para configuración ruta archivos
@@ -34,8 +37,10 @@ To do
 
 =======================================================================================
 ISSUES / BUGS
-    [] Tras imprimir no se borran los contenidos de los campos
-    [] Si vuelves a pulsar sobre generar pierdes la imágen y ya no ves la nueva etiqueta
+    [x] Tras imprimir no se borran los contenidos de los campos
+        [x]Solucionado incorporando en la función print_label() --> 08/12/2024
+    [x] Si vuelves a pulsar sobre generar pierdes la imágen y ya no ves la nueva etiqueta
+        [x]Solucionado cambiando la definición de label en display_label() --> 08/12/2024
 
 =======================================================================================
 
@@ -177,6 +182,8 @@ def Crear_Batch():
 # Función para mostrar la etiqueta generada
 def display_label():
     Batch_n=Crear_Batch()
+    #label_preview.config(image=None, text="Vista previa de la etiqueta")
+    #label_preview.image = None
     datam = label1_value.get() + ";" + label3_value.get() +";"+ Batch_n
     Model = label1_value.get()
     ERP_Code = label2_value.get()
@@ -189,7 +196,10 @@ def display_label():
     try:
         # Crear la etiqueta
         image_path = Impr_Node_packaging_label(datam, Model, ERP_Code, Serial_N)
-
+        
+        # Limpia la vista previa antes de asignar una nueva imagen
+        label_preview.config(image="", text="Vista previa de la etiqueta", bg="gray",width=500,height=350)
+        
         if not os.path.exists(image_path):
             messagebox.showerror("Error", "La imagen no se generó correctamente.")
             return
@@ -198,12 +208,16 @@ def display_label():
         img = Image.open(image_path)
 
         # Mantener la relación de aspecto
-        original_width, original_height = img.size
-        aspect_ratio = original_width / original_height
-        new_width = 200
-        new_height = int(new_width / aspect_ratio)
-
-        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        #original_width, original_height = img.size
+        #aspect_ratio = original_width / original_height
+        #new_width = 200
+        #new_height = int(new_width / aspect_ratio)
+        #img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        # Ajustar dimensiones de la imagen al widget
+        widget_width = label_preview.winfo_width()
+        widget_height = label_preview.winfo_height()
+        img = img.resize((widget_width, widget_height), Image.Resampling.LANCZOS)
+        
       
         # Convertir a formato compatible con Tkinter
         img_tk = ImageTk.PhotoImage(img)
@@ -212,9 +226,9 @@ def display_label():
         label_preview.config(image=img_tk)
         label_preview.image = img_tk
 
-        canvas = tk.Canvas(root, width=200, height=190, bg="white")
-        canvas.pack()
-        canvas.create_image(100, 100, image=img_tk)  # Centrar la imagen
+        #canvas = tk.Canvas(root, width=400, height=300, bg="white")
+        #canvas.pack()
+        #canvas.create_image(400, 300, image=img_tk)  # Centrar la imagen
         
     except Exception as e:
         messagebox.showerror("Error", f"Error al generar o cargar la etiqueta: {e}")
@@ -230,8 +244,17 @@ def print_label():
     try:
         os.system(f'lp -o orientation-requested=3 -d {IMPRESORA} {output_path}')
         messagebox.showinfo("Impresión", "La etiqueta se envió a la impresora correctamente.")
+        Print = True
+
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo imprimir la etiqueta:\n{e}")
+        Print = False
+    label1_value.set("N/A")
+    label2_value.set("N/A")
+    label3_value.set("N/A")
+    filter_value.set("")
+    label_preview.config(image=None, text="Vista previa de la etiqueta")
+    label_preview.image = None
 
 # Función para listar impresoras del sistema
 def list_printers():
@@ -272,6 +295,7 @@ def open_printer_window():
     # Botón para cerrar
     tk.Button(win, text="Cerrar", command=win.destroy).pack(pady=10)
 
+
 # Crear ventana principal
 root = tk.Tk()
 root.title("Aplicación de búsqueda y generación de etiquetas")
@@ -285,6 +309,8 @@ screen_height = monitor.height
 
 # Configurar la ventana al tamaño de la pantalla
 root.geometry(f"{screen_width}x{screen_height}")
+
+filter_value = tk.StringVar(value="")
 
 # Zona superior
 win = tk.Toplevel(root)
@@ -346,13 +372,14 @@ file_button.grid(row=0, column=2, pady=5)
 
 filter_label = tk.Label(center_frame, text="Valor a filtrar:",width=25)
 filter_label.grid(row=1, column=0, sticky="w", pady=10)
-filter_entry = tk.Entry(center_frame, width=100)
+filter_entry = tk.Entry(center_frame,textvariable=filter_value, width=100)
 filter_entry.grid(row=1, column=1,padx=1, pady=5)
 
 search_button = tk.Button(center_frame, text="Buscar", command=search_record)
 search_button.grid(row=1, column=2, pady=5)
 
 # Etiquetas para datos
+
 label1_value = tk.StringVar(value="N/A")
 label2_value = tk.StringVar(value="N/A")
 label3_value = tk.StringVar(value="N/A")
@@ -369,23 +396,19 @@ tk.Label(center_frame, text="Serial:",width=25).grid(row=19, column=0, sticky="w
 result3 = tk.Label(center_frame, textvariable=label3_value, width=100, anchor="w", relief="sunken")
 result3.grid(row=19, column=1, pady=5,padx=1)
 
-# Botones para generar y imprimir la etiqueta
+# Ubicación de los Botones
 btn_frame = tk.Frame(root, pady=10)
 btn_frame.pack()
-
+# Botones para generar la etiqueta
 generate_button = tk.Button(btn_frame, text="Generar etiqueta", command=display_label)
 generate_button.pack(side="left", padx=5)
-
+# Botones para imprimir la etiqueta
 print_button = tk.Button(btn_frame, text="Imprimir etiqueta", command=print_label)
 print_button.pack(side="left", padx=5)
 
 # Vista previa de la etiqueta generada
 label_preview = tk.Label(root, text="Vista previa de la etiqueta", bg="white", width=50, height=36)
-#label_preview = tk.Label(center_frame, text="Vista previa de la etiqueta", bg="white", width=50, height=36)
 label_preview.pack(pady=10)
-
-
-
 
 # Ejecutar aplicación
 root.mainloop()
