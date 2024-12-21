@@ -45,7 +45,7 @@ ISSUES / BUGS
 =======================================================================================
 
 Dependencias
-pip install screeninfo para redimensionar la ventana al ancho máximo
+sudo apt install python3-screeninfo para redimensionar la ventana al ancho máximo
 
 
 '''
