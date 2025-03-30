@@ -49,6 +49,9 @@ ISSUES / BUGS
 
 Dependencias
 sudo apt install python3-screeninfo para redimensionar la ventana al ancho máximo
+sudo apt-get install libdmtx0b
+pip install pylibdmtx
+pip install openpyxl
 
 
 '''
@@ -57,16 +60,16 @@ from tkinter import ttk
 from tkinter import *
 from tkinter import filedialog, messagebox
 import csv  # Para trabajar con archivos CSV
+import openpyxl # type: ignore
 import subprocess
 from pylibdmtx.pylibdmtx import encode
 #from PIL import Image, ImageDraw, ImageFont
 from PIL import Image, ImageDraw, ImageFont
+from PIL import ImageTk as IMG
 import os
 import json
 import datetime
 from screeninfo import get_monitors
-
-
 
 # Función para cargar la configuración
 def load_config(file_path="config.json"):
@@ -88,25 +91,27 @@ config = load_config()
 IMPRESORA = config.get("IMPRESORA", "")
 DIRECTORIO_LOGO = config.get("DIRECTORIO_LOGO", "")
 FONT_PATH = config.get("font_path", "")
-RUBIK_FONT_PATH = config.get("Rubik_font_path","")
+#RUBIK_FONT_PATH = config.get("Rubik_font_path","")
+RUBIK_FONT_PATH = "/usr/share/fonts/truetype/Rubik/Rubik-Light.ttf"
 BATCH_N = config.get ("batch", "")
 
 # Función para seleccionar un archivo
 def select_file():
     file_path = filedialog.askopenfilename(
         title="Seleccionar archivo",
-        filetypes=(("Archivos CSV", "*.csv"), ("Todos los archivos", "*.*"))
+        filetypes=(("Archivos CSV", "*.csv"), ("Todos los archivos", "*.*"),("Archivos xlsx", "*.xlsx"))
     )
     if file_path:
         file_entry.delete(0, tk.END)
         file_entry.insert(0, file_path)
 
 def Impr_Node_packaging_label(datam, Model, ERP_Code, Serial_N):
-    font_size = 25  # Tamaño de la fuente
+    font_size = 28  # Tamaño de la fuente
     ##font_path = "/usr/share/fonts/truetype/ubuntu/Ubuntu-L.ttf"
     font_path = RUBIK_FONT_PATH
     print(f"directorio y fuente cargada --> {font_path}")
-    font = ImageFont.truetype(font_path, font_size)
+    fuente = ImageFont.truetype(font_path, font_size)
+    print(f'valor de font --> {fuente}')
 
     mm_to_px = 11.81  # Factor de conversión de mm a px (300 DPI)
 
@@ -119,32 +124,43 @@ def Impr_Node_packaging_label(datam, Model, ERP_Code, Serial_N):
     
     # Cargar e insertar la imagen .png en la etiqueta
     image_path = DIRECTORIO_LOGO+"iconos.png"
+    print(f'directorio --> {image_path}')
     insert_image = Image.open(image_path)
-    insert_image = insert_image.resize((int(22 * mm_to_px), int(13 * mm_to_px)))  # Redimensionar si es necesario
+    #insert_image = insert_image.resize((int(22 * mm_to_px), int(13 * mm_to_px)))  # Redimensionar si es necesario
     label.paste(insert_image, (label_width - insert_image.width, int(25* mm_to_px)))  # Posición en la esquina superior derecha
-
+###    
+    insert_image.close()
     # Insertar logo
     ##logo_path = DIRECTORIO_LOGO + "logo.png"
-    logo_path = DIRECTORIO_LOGO + "W_Label_Devices.png"
+    logo_path = "/home/ws-prod23/Documentos/labelling_tk_app/images/W_Label_Devices.png"
+    print(f'Imagen logo --> {logo_path}')
     logo = Image.open(logo_path,"r").resize((int(42 * mm_to_px), int(8 * mm_to_px)))
     label.paste(logo, (0, 0))
 
     # Insertar texto
     draw = ImageDraw.Draw(label)
-    draw.text((2 * mm_to_px, 8 * mm_to_px), "Viriat 47, 10th Floor, 08014 Barcelona, Spain",font=font, font_size= 12  ,fill='black')
-    draw.text((2 * mm_to_px, 14 * mm_to_px), "Model: " + Model, font=font, fill="black")
-    draw.text((2 * mm_to_px, 18 * mm_to_px), "ERP Code: " + ERP_Code, font=font, fill="black")
-    draw.text((2 * mm_to_px, 22 * mm_to_px), "Serial Nb: " + Serial_N, font=font, fill="black")
-    
+    print(f'creado draw --> {draw}')
+    draw.text((2 * mm_to_px, 8 * mm_to_px), "Viriat 47, 10th Floor, 08014 Barcelona, Spain",font_size=22 ,  fill='black')
+    print(f'creado el texto de la dirección de viriat')
+    draw.text((2 * mm_to_px, 14 * mm_to_px), "Model:  " + Model, font_size=28, fill="black")
+    print(f'creado el texto para el Model')
+    draw.text((2 * mm_to_px, 18 * mm_to_px), "ERP Code:  " + ERP_Code,font_size=28,  fill="black")
+    print(f'creado el texto para el ERP')
+    draw.text((2 * mm_to_px, 22 * mm_to_px), "Serial Nb:  " + Serial_N, font_size=28, fill="black")
+    print(f'creado el texto para el Serial')
+    print(f'creados los textos en la etiqueta')
     # Insertar código Data Matrix
     encoded = encode(datam.encode('utf8'))
     dmtx = Image.frombytes('RGB', (encoded.width, encoded.height), encoded.pixels)
     dmtx = dmtx.resize((int(16 * mm_to_px), int(16 * mm_to_px)))
     label.paste(dmtx, (int(34*mm_to_px), int(12 * mm_to_px)))
+    print(f'creado el datamatrix en la etiqueta')
     
     # Guardar la etiqueta como archivo
-    output_path = "output_test.png"
+    output_path = os.path.expanduser("~/Documentos/labelling_tk_app/output_test2.png")
+    print(f'ruta donde guardaremos la etiqueta --> {output_path}')
     label.save(output_path)
+    print(f'etiqueta guardada')
     return output_path
 
 # Función para buscar un registro
@@ -165,18 +181,20 @@ def search_record():
         return
 
     try:
-        with open(file_path, mode='r', encoding='utf-8') as file:
-            reader = csv.reader(file)
-            headers = next(reader)  # Leer los encabezados
-            for row in reader:
-                if filter_value in row:  # Buscar el valor en la fila
-                    label1_value.set(row[5] if len(row) > 5 else "N/A")
-                    texto2 = label1_value.get().replace("-", "")
-                    label2_value.set(texto2)
-                    #label2_value.set(row[5] if len(row) > 5 else "N/A")
-                    label3_value.set(row[13] if len(row) > 4 else "N/A")
-                    return
-            messagebox.showinfo("Información", "Registro no encontrado.")
+        
+        reader = openpyxl.load_workbook(file_path)
+        hoja = reader.active
+        for fila in hoja.iter_rows(values_only = True):
+            #print(f'fila leida --> {fila}')
+            if filter_value in fila:  # Buscar el valor en la fila
+                
+                label1_value.set(fila[5] if len(fila) > 5 else "N/A")
+                texto2 = label1_value.get().replace("-", "")
+                label2_value.set(texto2)               
+                label3_value.set(fila[13] if len(fila) > 4 else "N/A")
+                return
+             
+            #messagebox.showinfo("Información", "Registro no encontrado.")
     except Exception as e:
         messagebox.showerror("Error", f"Ocurrió un error al abrir el archivo:\n{e}")
 
@@ -188,38 +206,89 @@ def Crear_Batch():
     return Batch_n
 
 # Función para mostrar la etiqueta generada
-def display_label():
-    Batch_n=Crear_Batch()
+#def display_label():
+#    Batch_n=Crear_Batch()
     #label_preview.config(image=None, text="Vista previa de la etiqueta")
     #label_preview.image = None
-    datam = label1_value.get() + ";" + label3_value.get() +";"+ Batch_n
-    Model = label1_value.get()
-    ERP_Code = label2_value.get()
-    Serial_N = label3_value.get()
+#    datam = label1_value.get() + ";" + label3_value.get() +";"+ Batch_n
+#    Model = label1_value.get()
+#    ERP_Code = label2_value.get()
+#    Serial_N = label3_value.get()
 
-    if not (Model and ERP_Code and Serial_N):
-        messagebox.showwarning("Advertencia", "Faltan datos para generar la etiqueta.")
-        return
+#    if not (Model and ERP_Code and Serial_N):
+#        messagebox.showwarning("Advertencia", "Faltan datos para generar la etiqueta.")
+#        return
 
+#    try:
+#        # Crear la etiqueta
+#        image_path = Impr_Node_packaging_label(datam, Model, ERP_Code, Serial_N)
+#        # Verificar que la imagen se generó correctamente antes de usarla
+#        if not os.path.exists(image_path):
+#            messagebox.showerror("Error", "La imagen no se generó correctamente.")
+#            return
+#        template = os.path.expanduser("~/Documentos/labelling_tk_app/output_test2.png")
+#        imagen = Image.open(fp=template)
+#        imagen.show() 
+
+#        foto = tk.PhotoImage(file= template)
+#        imagen = Image.open(fp=template,mode="r")
+#        foto = IMG.PhotoImage(imagen)  
+#        label_preview.config(height=450, width=650)
+#        #label_preview['image']= foto
+#        label_preview.image= foto
+#        if not os.path.exists(image_path):
+#            messagebox.showerror("Error", "La imagen no se generó correctamente.")
+#            return
+#    except Exception as e:
+#        messagebox.showerror("Error", f"Error al generar o cargar la etiqueta: {e}")
+
+def display_label():
+    print(f'Entrando en display label')
     try:
-        # Crear la etiqueta
+        print(f'Entrando en el Try')
+        Batch_n = Crear_Batch()
+        print(f'Datos del lote --> {Batch_n}')
+        datam = label1_value.get() + ";" + label3_value.get() + ";" + Batch_n
+        print(f'Datos del Datamatrix --> {datam}')
+        Model = label1_value.get()
+        ERP_Code = label2_value.get()
+        Serial_N = label3_value.get()
+
+        if not (Model and ERP_Code and Serial_N):
+            messagebox.showwarning("Advertencia", "Faltan datos para generar la etiqueta.")
+            return
+
+        # Crear la etiqueta y verificar si la imagen existe
         image_path = Impr_Node_packaging_label(datam, Model, ERP_Code, Serial_N)
-        template = "/home/carlos/Documents/Labels_tk_app/labelling_tk_app-main/output_test.png"
-        foto = tk.PhotoImage(file= template)
-        imagen = Image.open(fp=template,mode="r")
-        imagen.show()       
-        label_preview.config(height=450, width=650)
-        label_preview['image']= foto
-        
+        print (f'Datos en la etiqueta --> {image_path}')
         if not os.path.exists(image_path):
             messagebox.showerror("Error", "La imagen no se generó correctamente.")
             return
+
+        # Asegurar que la imagen sea accesible
+        template = os.path.expanduser("~/Documentos/labelling_tk_app/output_test2.png")
+        print(template)
+
+        # Cargar la imagen correctamente
+        imagen = Image.open(template)
+        imagen.show()
+        foto = IMG.PhotoImage(imagen)  # Usar ImageTk para compatibilidad con tkinter
+        
+        label_preview.config(height=450, width=650)
+        #label_preview.image = foto  # Guardar referencia para evitar recolección de basura
+        label_preview.config(image=foto)
+
+        # Mostrar la imagen en visor externo (opcional)
+        #imagen.show()
+
     except Exception as e:
         messagebox.showerror("Error", f"Error al generar o cargar la etiqueta: {e}")
+    
+
 
 # Función para imprimir la etiqueta
 def print_label():
-    output_path = "output_test.png"
+    output_path = os.path.expanduser("~/Documentos/labelling_tk_app/output_test2.png")
     imagen = Image.open(fp=output_path, mode="r")
     imagen.show()
     if not os.path.exists(output_path):
@@ -304,9 +373,9 @@ filter_value = tk.StringVar(value="")
 # Zona superior
 # *******************************************************************************
 
-win = tk.Toplevel(root)
-menubar = tk.Menu(win)
-win['menu'] = menubar
+#win = tk.Toplevel(root)
+#menubar = tk.Menu(win)
+#win['menu'] = menubar
 menubar = tk.Menu(root)
 menu_setup = tk.Menu(menubar)
 menu_edit = tk.Menu(menubar)
